@@ -91,6 +91,7 @@ class User {
       [username]
     );
     const user = result.rows[0];
+    console.log(user);
 
     if (!user) throw new NotFoundError('User does not exist');
 
@@ -106,10 +107,10 @@ class User {
    */
 
   static async messagesFrom(username) {
-    const user = get(username);
+    // const user = User.get(username);
     const allMessages = [];
 
-    if (!user) throw new NotFoundError(`User does not exist: ${username}`);
+    // if (!user) throw new NotFoundError(`User does not exist: ${username}`);
 
     const result = await db.query(
       `SELECT messages.id,
@@ -121,27 +122,27 @@ class User {
               messages.sent_at,
               messages.read_at
         FROM messages
-        JOIN users AS t
-        ON t.to_username = t.username
+        JOIN users
+        ON t.to_username = users.username
         WHERE username = $1`,
       [username]
     );
     const messages = result.rows;
 
     for (let message of messages) {
-      let message = {
-        id: messages.id,
+      let data = {
+        id: message.id,
         to_user: {
-          username: messages.to_username,
-          first_name: messages.to_first_name,
-          last_name: messages.to_last_name,
-          phone: messages.to_phone,
+          username: message.to_username,
+          first_name: message.to_first_name,
+          last_name: message.to_last_name,
+          phone: message.to_phone,
         },
-        body: messages.body,
-        sent_at: messages.sent_at,
-        read_at: messages.read_at,
+        body: message.body,
+        sent_at: message.sent_at,
+        read_at: message.read_at,
       };
-      allMessages.push(message);
+      allMessages.push(data);
     }
 
     return allMessages;
