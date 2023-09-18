@@ -91,7 +91,6 @@ class User {
       [username]
     );
     const user = result.rows[0];
-    console.log(user);
 
     if (!user) throw new NotFoundError('User does not exist');
 
@@ -114,20 +113,25 @@ class User {
 
     const result = await db.query(
       `SELECT messages.id,
-              t.to_username,
+              messages.to_username,
               t.first_name AS to_first_name,
               t.last_name AS to_last_name,
-              t.phone AS t_phone
+              t.phone AS to_phone,
+              messages.from_username,
+              f.first_name AS from_first_name,
+              f.last_name AS from_last_name,
+              f.phone AS from_phone,
               messages.body,
               messages.sent_at,
               messages.read_at
         FROM messages
-        JOIN users
-        ON t.to_username = users.username
-        WHERE username = $1`,
+        JOIN users AS t ON messages.to_username = t.username
+        JOIN users AS f ON messages.from_username = f.username
+        WHERE f.username = $1`,
       [username]
     );
     const messages = result.rows;
+    console.log(messages);
 
     for (let message of messages) {
       let data = {
@@ -142,9 +146,9 @@ class User {
         sent_at: message.sent_at,
         read_at: message.read_at,
       };
+
       allMessages.push(data);
     }
-
     return allMessages;
   }
 
@@ -157,7 +161,50 @@ class User {
    */
 
   static async messagesTo(username) {
+    // const user = User.get(username);
+    const allMessages = [];
 
+    // if (!user) throw new NotFoundError(`User does not exist: ${username}`);
+
+    const result = await db.query(
+      `SELECT messages.id,
+              messages.to_username,
+              t.first_name AS to_first_name,
+              t.last_name AS to_last_name,
+              t.phone AS to_phone,
+              messages.from_username,
+              f.first_name AS from_first_name,
+              f.last_name AS from_last_name,
+              f.phone AS from_phone,
+              messages.body,
+              messages.sent_at,
+              messages.read_at
+        FROM messages
+        JOIN users AS t ON messages.to_username = t.username
+        JOIN users AS f ON messages.from_username = f.username
+        WHERE t.username = $1`,
+      [username]
+    );
+    const messages = result.rows;
+
+    for (let message of messages) {
+      let data = {
+        id: message.id,
+        from_user: {
+          username: message.from_username,
+          first_name: message.from_first_name,
+          last_name: message.from_last_name,
+          phone: message.from_phone,
+        },
+        body: message.body,
+        sent_at: message.sent_at,
+        read_at: message.read_at,
+      };
+
+      allMessages.push(data);
+    }
+
+    return allMessages;
   }
 }
 
