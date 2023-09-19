@@ -117,51 +117,52 @@ class User {
   static async messagesFrom(username) {
     const user = await User.get(username);
 
+    const result = await db.query(
+      `SELECT messages.id,
+      messages.to_username,
+      users.first_name,
+      users.last_name,
+      users.phone,
+      messages.body,
+      messages.sent_at,
+      messages.read_at
+      FROM messages
+      JOIN users
+      ON messages.to_username = users.username
+      WHERE from_username = $1`,
+      [username]
+    );
+
     //TODO: don't need 2 joins
+    //inefficient way
     // const result = await db.query(
     //   `SELECT messages.id,
     //           messages.to_username,
-    //           users.first_name,
-    //           users.last_name,
-    //           users.phone,
+    //           t.first_name AS to_first_name,
+    //           t.last_name AS to_last_name,
+    //           t.phone AS to_phone,
+    //           messages.from_username,
+    //           f.first_name AS from_first_name,
+    //           f.last_name AS from_last_name,
+    //           f.phone AS from_phone,
     //           messages.body,
     //           messages.sent_at,
     //           messages.read_at
     //     FROM messages
-    //     JOIN users
-    //     ON messages.to_username = users.username
-    //     WHERE from_username = $1`,
+    //     JOIN users AS t ON messages.to_username = t.username
+    //     JOIN users AS f ON messages.from_username = f.username
+    //     WHERE f.username = $1`,
     //   [username]
     // );
-    const result = await db.query(
-      `SELECT messages.id,
-              messages.to_username,
-              t.first_name AS to_first_name,
-              t.last_name AS to_last_name,
-              t.phone AS to_phone,
-              messages.from_username,
-              f.first_name AS from_first_name,
-              f.last_name AS from_last_name,
-              f.phone AS from_phone,
-              messages.body,
-              messages.sent_at,
-              messages.read_at
-        FROM messages
-        JOIN users AS t ON messages.to_username = t.username
-        JOIN users AS f ON messages.from_username = f.username
-        WHERE f.username = $1`,
-      [username]
-    );
     const messages = result.rows;
 
-    //TODO: can use map to return arr
     return messages.map(m => ({
       id: m.id,
       to_user: {
         username: m.to_username,
-        first_name: m.to_first_name,
-        last_name: m.to_last_name,
-        phone: m.to_phone,
+        first_name: m.first_name,
+        last_name: m.last_name,
+        phone: m.phone,
       },
       body: m.body,
       sent_at: m.sent_at,
@@ -184,7 +185,6 @@ class User {
     if (!user) throw new NotFoundError(`User does not exist: ${username}`);
 
     //TODO: don't need 2 joins
-    //FIXME: quetion: rithm solution does not pass tests
     const result = await db.query(
       `SELECT messages.id,
               messages.to_username,
@@ -205,8 +205,6 @@ class User {
       [username]
     );
     const messages = result.rows;
-
-    //TODO: map
 
     return messages.map(m => ({
       id: m.id,
