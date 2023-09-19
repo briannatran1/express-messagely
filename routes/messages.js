@@ -21,10 +21,10 @@ const { UnauthorizedError } = require("../expressError");
 
 router.get('/:id', ensureLoggedIn, async function (req, res) {
   const message = await Message.get(req.params.id);
-  const user = res.locals.user.username;
+  const username = res.locals.user.username;
 
   // user is not the sender OR recipient
-  if (message.to_user.username !== user && message.from_user.username !== user) {
+  if (message.to_user.username !== username && message.from_user.username !== username) {
     throw new UnauthorizedError('Unauthorized action');
   }
 
@@ -40,10 +40,10 @@ router.get('/:id', ensureLoggedIn, async function (req, res) {
  **/
 
 router.post('/', ensureLoggedIn, async function (req, res) {
-  const { from_username, to_username, body } = req.body;
+  const { to_username } = req.body;
   const message = await Message.create(req.body);
 
-  return res.json({ message });
+  return res.json({ to_username, body: message });
 });
 
 
@@ -57,14 +57,14 @@ router.post('/', ensureLoggedIn, async function (req, res) {
 
 router.post('/:id/read', ensureLoggedIn, async function (req, res) {
   const message = await Message.get(req.params.id);
-  const user = res.locals.user.username;
+  const username = res.locals.user.username;
 
-  if (message.to_user.username === user) {
-    await Message.markRead(req.params.id);
+  if (message.to_user.username !== username) {
+    throw new UnauthorizedError('Unauthorized action');
   }
 
-  throw new UnauthorizedError('Unauthorized action');
+  const msg = await Message.markRead(req.params.id);
+  return res.json({ msg });
 });
-
 
 module.exports = router;

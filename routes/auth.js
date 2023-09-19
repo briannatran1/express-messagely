@@ -17,6 +17,10 @@ router.post('/login', async function (req, res) {
     let payload = { username };
     let token = jwt.sign(payload, SECRET_KEY);
 
+    // can use await
+    User.updateLoginTimestamp(username);
+
+    console.log(res.locals.user);
     return res.json({ token });
   }
   throw new UnauthorizedError('Invalid credentials');
