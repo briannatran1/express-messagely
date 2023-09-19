@@ -1,6 +1,6 @@
 "use strict";
 
-const { NotFoundError } = require("../expressError");
+const { NotFoundError, BadRequestError } = require("../expressError");
 const db = require("../db");
 const bcrypt = require('bcrypt');
 const { BCRYPT_WORK_FACTOR } = require("../config");
@@ -36,40 +36,42 @@ class User {
   static async authenticate(username, password) {
     const result = await db.query(
       `SELECT password
-        FROM users
-        WHERE username = $1`,
+      FROM users
+      WHERE username = $1`,
       [username]
     );
     const user = result.rows[0];
 
-    if (user) {
-      if (await bcrypt.compare(password, user.password)) {
-        return true;
-      }
-    }
-    return false;
+    //return user and await compare
+    return user && await bcrypt.compare(password, user.password) === true;
   }
 
   /** Update last_login_at for user */
 
   static async updateLoginTimestamp(username) {
+    //FIXME: test fails when trying to throw error
     const result = await db.query(
       `UPDATE users
         SET last_login_at = current_timestamp
         WHERE username = $1`,
       [username]
     );
+    const user = result.rows[0];
 
-    return result.rows[0];
+    // if (!user) throw new NotFoundError(`User does not exist: ${username}`);
+
+    return user;
   }
 
   /** All: basic info on all users:
    * [{username, first_name, last_name}, ...] */
 
   static async all() {
+    // always use ORDER BY if you get a bunch of info
     const result = await db.query(
       `SELECT username, first_name, last_name
-        FROM users`
+        FROM users
+        ORDER BY username`
     );
 
     return result.rows;
@@ -98,7 +100,7 @@ class User {
     );
     const user = result.rows[0];
 
-    if (!user) throw new NotFoundError('User does not exist');
+    if (!user) throw new NotFoundError(`User does not exist: ${username}`);
 
     return user;
   }
@@ -112,11 +114,10 @@ class User {
    */
 
   static async messagesFrom(username) {
-    const user = User.get(username);
+    const user = await User.get(username);
     const allMessages = [];
 
-    if (!user) throw new NotFoundError(`User does not exist: ${username}`);
-
+    //TODO: don't need 2 joins
     const result = await db.query(
       `SELECT messages.id,
               messages.to_username,
@@ -138,6 +139,7 @@ class User {
     );
     const messages = result.rows;
 
+    //TODO: can use map to return arr
     for (let message of messages) {
       let data = {
         id: message.id,
@@ -166,11 +168,12 @@ class User {
    */
 
   static async messagesTo(username) {
-    const user = User.get(username);
+    const user = await User.get(username);
     const allMessages = [];
 
     if (!user) throw new NotFoundError(`User does not exist: ${username}`);
 
+    //TODO: don't need 2 joins
     const result = await db.query(
       `SELECT messages.id,
               messages.to_username,
@@ -192,6 +195,7 @@ class User {
     );
     const messages = result.rows;
 
+    //TODO: map
     for (let message of messages) {
       let data = {
         id: message.id,
