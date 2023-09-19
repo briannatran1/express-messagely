@@ -19,7 +19,6 @@ router.post('/login', async function (req, res) {
 
     return res.json({ token });
   }
-
   throw new UnauthorizedError('Invalid credentials');
 });
 
@@ -30,7 +29,14 @@ router.post('/login', async function (req, res) {
  */
 
 router.post('/register', async function (req, res) {
+  if (req.body === undefined) throw new BadRequestError();
 
+  const { username } = await User.register(req.body);
+  const token = jwt.sign({ username }, SECRET_KEY);
+  const payload = jwt.verify(token, SECRET_KEY);
+  res.locals.user = payload;
+
+  return res.json({ token });
 });
 
 module.exports = router;
