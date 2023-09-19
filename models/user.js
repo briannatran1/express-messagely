@@ -49,16 +49,17 @@ class User {
   /** Update last_login_at for user */
 
   static async updateLoginTimestamp(username) {
-    //FIXME: test fails when trying to throw error
+    //FIXME: question: test fails when trying to throw error if no RETURNING statement
     const result = await db.query(
       `UPDATE users
         SET last_login_at = current_timestamp
-        WHERE username = $1`,
+        WHERE username = $1
+        RETURNING username`,
       [username]
     );
     const user = result.rows[0];
 
-    // if (!user) throw new NotFoundError(`User does not exist: ${username}`);
+    if (!user) throw new NotFoundError(`User does not exist: ${username}`);
 
     return user;
   }
@@ -115,9 +116,23 @@ class User {
 
   static async messagesFrom(username) {
     const user = await User.get(username);
-    const allMessages = [];
 
     //TODO: don't need 2 joins
+    // const result = await db.query(
+    //   `SELECT messages.id,
+    //           messages.to_username,
+    //           users.first_name,
+    //           users.last_name,
+    //           users.phone,
+    //           messages.body,
+    //           messages.sent_at,
+    //           messages.read_at
+    //     FROM messages
+    //     JOIN users
+    //     ON messages.to_username = users.username
+    //     WHERE from_username = $1`,
+    //   [username]
+    // );
     const result = await db.query(
       `SELECT messages.id,
               messages.to_username,
@@ -140,23 +155,18 @@ class User {
     const messages = result.rows;
 
     //TODO: can use map to return arr
-    for (let message of messages) {
-      let data = {
-        id: message.id,
-        to_user: {
-          username: message.to_username,
-          first_name: message.to_first_name,
-          last_name: message.to_last_name,
-          phone: message.to_phone,
-        },
-        body: message.body,
-        sent_at: message.sent_at,
-        read_at: message.read_at,
-      };
-
-      allMessages.push(data);
-    }
-    return allMessages;
+    return messages.map(m => ({
+      id: m.id,
+      to_user: {
+        username: m.to_username,
+        first_name: m.to_first_name,
+        last_name: m.to_last_name,
+        phone: m.to_phone,
+      },
+      body: m.body,
+      sent_at: m.sent_at,
+      read_at: m.read_at,
+    }));
   }
 
   /** Return messages to this user.
@@ -169,11 +179,12 @@ class User {
 
   static async messagesTo(username) {
     const user = await User.get(username);
-    const allMessages = [];
+    // const allMessages = [];
 
     if (!user) throw new NotFoundError(`User does not exist: ${username}`);
 
     //TODO: don't need 2 joins
+    //FIXME: quetion: rithm solution does not pass tests
     const result = await db.query(
       `SELECT messages.id,
               messages.to_username,
@@ -196,24 +207,19 @@ class User {
     const messages = result.rows;
 
     //TODO: map
-    for (let message of messages) {
-      let data = {
-        id: message.id,
-        from_user: {
-          username: message.from_username,
-          first_name: message.from_first_name,
-          last_name: message.from_last_name,
-          phone: message.from_phone,
-        },
-        body: message.body,
-        sent_at: message.sent_at,
-        read_at: message.read_at,
-      };
 
-      allMessages.push(data);
-    }
-
-    return allMessages;
+    return messages.map(m => ({
+      id: m.id,
+      from_user: {
+        username: m.from_username,
+        first_name: m.from_first_name,
+        last_name: m.from_last_name,
+        phone: m.from_phone,
+      },
+      body: m.body,
+      sent_at: m.sent_at,
+      read_at: m.read_at,
+    }));
   }
 }
 
